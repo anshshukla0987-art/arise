@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shukla GPT — Solo Leveling Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#040a16; --bg2:#071427; --card:#0b1626; --accent:#00ffd7; --muted:#9fb4c8; --glass:rgba(255,255,255,0.04);
+      --good:#35ff9b; --warn:#ffd54d; --bad:#ff6b6b;
+    }
+    *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+    html,body{height:100%}
+    body{margin:0; background: radial-gradient(60% 80% at 70% 30%, #0a1933 0%, var(--bg) 60%); color:#ecf8ff; overflow:hidden}
+    /* floating formula background */
+    #formulaLayer{position:fixed; inset:0; pointer-events:none; overflow:hidden; filter:drop-shadow(0 0 6px rgba(0,255,215,.35));}
+    .formula{position:absolute; font-weight:700; color:rgba(0,255,215,.35); opacity:.6; animation: drift linear infinite; white-space:nowrap}
+    @keyframes drift{ 0%{ transform:translateY(110vh) translateX(var(--x)) scale(.9) rotate(0deg)} 100%{ transform:translateY(-20vh) translateX(calc(var(--x) + 30px)) scale(1.1) rotate(8deg)} }
+
+    header{position:relative; z-index:2; display:flex; align-items:center; gap:14px; padding:14px 18px; border-bottom:1px solid rgba(255,255,255,.05)}
+    .brand{font-weight:800; letter-spacing:.5px; color:var(--accent)}
+    .muted{color:var(--muted)}
+
+    main{position:relative; z-index:2; padding:18px; display:grid; grid-template-columns: 40% 60%; gap:18px; height:calc(100vh - 66px)}
+    .panel{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015)); border:1px solid rgba(255,255,255,.06); border-radius:14px; padding:14px; height:100%; overflow:auto}
+
+    .title{font-weight:800; margin-bottom:8px}
+    .row{display:flex; align-items:center; gap:10px}
+    .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+
+    .input, select{width:100%; background:#071626; border:1px solid rgba(255,255,255,.08); color:#fff; padding:8px 10px; border-radius:10px}
+    .statCard{background:var(--glass); border:1px solid rgba(255,255,255,.06); border-radius:12px; padding:10px}
+    .bar{height:8px; background:#0b2035; border-radius:999px; overflow:hidden}
+    .bar > span{display:block; height:100%; background:linear-gradient(90deg, var(--accent), #67ffd7)}
+
+    .badge{display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); padding:6px 8px; border-radius:999px; font-size:12px; margin:4px 6px 0 0}
+    .dot{width:8px;height:8px;border-radius:50%}
+
+    /* AI orb */
+    .aiWrap{display:flex; align-items:center; justify-content:center; height:100%}
+    .orb{position:relative; width:min(60vh, 80%); aspect-ratio:1/1; border-radius:50%; background:radial-gradient(circle at 50% 40%, #1b3359 0%, #0a1530 55%, #081024 100%); box-shadow: inset 0 0 40px rgba(0,255,215,.15), 0 0 40px rgba(0,255,215,.08); overflow:hidden;}
+    .orbGlow{position:absolute; inset:0; background:radial-gradient(circle at var(--gx,50%) var(--gy,50%), var(--gcol,rgba(0,255,215,.25)) 0%, transparent 60%); filter:blur(18px); opacity:.8;}
+    .orbCore{position:absolute; inset:12%; border-radius:50%; background:radial-gradient(circle at 50% 50%, var(--core,rgba(0,255,140,.45)) 0%, transparent 70%); mix-blend-mode:screen; animation: idlePulse 3s ease-in-out infinite}
+    .orbRing{position:absolute; inset:0; border-radius:50%; border:2px dashed rgba(0,255,215,.25); animation: rotate 18s linear infinite}
+    .orbState{position:absolute; bottom:12px; right:12px; padding:6px 10px; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.08); border-radius:10px; font-size:12px}
+
+    @keyframes rotate{to{transform:rotate(360deg)}}
+    @keyframes idlePulse{0%,100%{transform:scale(.96)} 50%{transform:scale(1)}}
+    @keyframes listenPulse{0%,100%{transform:scale(.6)} 50%{transform:scale(1)}}
+
+    .btn{background:var(--accent); color:#001217; border:0; padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700}
+    .btnGhost{background:transparent; color:#cfeff0; border:1px solid rgba(255,255,255,.2)}
+
+    /* responsive */
+    @media (max-width: 980px){ main{grid-template-columns:1fr; height:auto} body{overflow:auto} .orb{width:min(50vh, 92vw)} }
+  </style>
+</head>
+<body>
+  <div id="formulaLayer"></div>
+
+  <header>
+    <div class="brand">⚔️ Shukla GPT • Solo Leveling Dashboard</div>
+    <div class="muted">v1 • Class 12 PCM + English</div>
+    <div style="margin-left:auto" class="row">
+      <button id="micBtn" class="btnGhost">🎤 Enable Mic</button>
+      <button id="ariseBtn" class="btn">Arise</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left: Stats 40% -->
+    <section class="panel" id="statsPanel">
+      <div class="title">Player Stats</div>
+      <div class="grid2">
+        <div>
+          <label class="muted">Player Name</label>
+          <input id="nameInput" class="input" placeholder="Your name" />
+        </div>
+        <div>
+          <label class="muted">Class</label>
+          <input id="classInput" class="input" placeholder="Class 12" value="Class 12" />
+        </div>
+        <div>
+          <label class="muted">Total Chapters</label>
+          <input id="totalChInput" class="input" type="number" min="0" value="0" />
+        </div>
+        <div>
+          <label class="muted">Completed</label>
+          <input id="doneChInput" class="input" type="number" min="0" value="0" />
+        </div>
+      </div>
+
+      <div style="margin-top:12px" class="grid2">
+        <div class="statCard">
+          <div class="row"><div style="width:90px" class="muted">Level</div> <b id="levelVal">0</b></div>
+          <div class="bar" style="margin-top:6px"><span id="levelBar" style="width:0%"></span></div>
+        </div>
+        <div class="statCard">
+          <div class="row"><div style="width:90px" class="muted">Focus</div> <b id="focusVal">0</b></div>
+          <div class="bar" style="margin-top:6px"><span id="focusBar" style="width:0%"></span></div>
+        </div>
+        <div class="statCard">
+          <div class="row"><div style="width:90px" class="muted">Discipline</div> <b id="discVal">0</b></div>
+          <div class="bar" style="margin-top:6px"><span id="discBar" style="width:0%"></span></div>
+        </div>
+        <div class="statCard">
+          <div class="row"><div style="width:90px" class="muted">Chapters Left</div> <b id="leftVal">0</b></div>
+          <div class="bar" style="margin-top:6px"><span id="leftBar" style="width:0%"></span></div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="title">Achievements</div>
+        <div id="badges"></div>
+      </div>
+
+      <div style="margin-top:12px" class="row">
+        <button id="saveBtn" class="btn">Save</button>
+        <button id="addDone" class="btnGhost">+1 Chapter Done</button>
+        <button id="boostFocus" class="btnGhost">+5 Focus</button>
+        <button id="boostDisc" class="btnGhost">+5 Discipline</button>
+      </div>
+    </section>
+
+    <!-- Right: AI 60% -->
+    <section class="panel aiWrap">
+      <div class="orb" id="orb">
+        <div class="orbGlow" id="orbGlow"></div>
+        <div class="orbCore" id="orbCore"></div>
+        <div class="orbRing"></div>
+        <div class="orbState" id="orbState">Idle</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    /*********************
+     * Floating formulas *
+     *********************/
+    const formulas = [
+      // Physics
+      'F = ma', 'v = u + at', 's = ut + 1/2 at²', 'P = VI', 'E = hf', 'λ = h/p', 'V = IR',
+      // Chemistry
+      'PV = nRT', 'ΔG = ΔH - TΔS', 'pH = -log[H+]', 'K = [C]^c[D]^d/[A]^a[B]^b',
+      // Maths
+      '∫ x^n dx = x^{n+1}/(n+1)', 'd/dx (sin x) = cos x', '∇·E = ρ/ε₀', 'P(A∩B)=P(A)P(B|A)',
+      // English (keywords)
+      'Alliteration', 'Metaphor', 'Thesis', 'Cohesion'
+    ];
+
+    function spawnFormulas(){
+      const layer = document.getElementById('formulaLayer');
+      const W = window.innerWidth; const H = window.innerHeight;
+      for(let i=0;i<28;i++){
+        const el = document.createElement('div');
+        el.className='formula';
+        el.textContent = formulas[Math.floor(Math.random()*formulas.length)];
+        el.style.left = Math.random()*W + 'px';
+        el.style.top = Math.random()*H + 'px';
+        el.style.fontSize = (12 + Math.random()*20) + 'px';
+        el.style.setProperty('--x', (Math.random()*60 - 30) + 'px');
+        el.style.animationDuration = (18 + Math.random()*28) + 's';
+        layer.appendChild(el);
+      }
+    }
+    spawnFormulas();
+
+    /*********************
+     * State & helpers   *
+     *********************/
+    const state = {
+      name: localStorage.getItem('name') || '',
+      cls: localStorage.getItem('cls') || 'Class 12',
+      total: +(localStorage.getItem('total')||0),
+      done: +(localStorage.getItem('done')||0),
+      focus: +(localStorage.getItem('focus')||0),
+      disc: +(localStorage.getItem('disc')||0),
+      level: +(localStorage.getItem('level')||0),
+      listening: false,
+      talking: false,
+      lang: 'auto'
+    };
+
+    function save(){
+      Object.entries({name:state.name, cls:state.cls, total:state.total, done:state.done, focus:state.focus, disc:state.disc, level:state.level}).forEach(([k,v])=>localStorage.setItem(k,v));
+    }
+
+    function clamp(n,min,max){return Math.max(min, Math.min(max, n))}
+    function calcLevel(){
+      // simple formula: level from (done + focus/10 + disc/10)
+      const score = state.done + state.focus/10 + state.disc/10;
+      state.level = Math.floor(score/3);
+    }
+
+    /*********************
+     * UI bind           *
+     *********************/
+    const nameInput = document.getElementById('nameInput');
+    const classInput = document.getElementById('classInput');
+    const totalChInput = document.getElementById('totalChInput');
+    const doneChInput = document.getElementById('doneChInput');
+    const levelVal = document.getElementById('levelVal');
+    const focusVal = document.getElementById('focusVal');
+    const discVal = document.getElementById('discVal');
+    const leftVal = document.getElementById('leftVal');
+    const levelBar = document.getElementById('levelBar');
+    const focusBar = document.getElementById('focusBar');
+    const discBar = document.getElementById('discBar');
+    const leftBar = document.getElementById('leftBar');
+
+    function render(){
+      nameInput.value = state.name; classInput.value = state.cls;
+      totalChInput.value = state.total; doneChInput.value = state.done;
+      focusVal.textContent = state.focus; discVal.textContent = state.disc; leftVal.textContent = clamp(state.total - state.done, 0, 9999);
+      calcLevel(); levelVal.textContent = state.level;
+      const lPct = clamp((state.level%10)*10,0,100);
+      levelBar.style.width = lPct+'%';
+      focusBar.style.width = clamp(state.focus,0,100)+'%';
+      discBar.style.width = clamp(state.disc,0,100)+'%';
+      const leftPct = state.total? clamp(((state.total - state.done)/state.total)*100,0,100) : 0;
+      leftBar.style.width = leftPct+'%';
+      renderBadges();
+    }
+
+    nameInput.oninput = ()=>{ state.name = nameInput.value };
+    classInput.oninput = ()=>{ state.cls = classInput.value };
+    totalChInput.oninput = ()=>{ state.total = +totalChInput.value; render() };
+    doneChInput.oninput = ()=>{ state.done = +doneChInput.value; render() };
+
+    document.getElementById('saveBtn').onclick = ()=>{ save(); flash("Saved ✔") };
+    document.getElementById('addDone').onclick = ()=>{ state.done++; render(); save(); flash("Nice! Chapter logged.") };
+    document.getElementById('boostFocus').onclick = ()=>{ state.focus = clamp(state.focus+5,0,100); render(); save(); };
+    document.getElementById('boostDisc').onclick = ()=>{ state.disc = clamp(state.disc+5,0,100); render(); save(); };
+
+    const badgesEl = document.getElementById('badges');
+    function renderBadges(){
+      const earned = [];
+      if(state.done >= 1) earned.push({name:'First Blood', color:'var(--good)'});
+      if(state.done >= 10) earned.push({name:'Deca Slayer', color:'#67ffd7'});
+      if(state.focus >= 50) earned.push({name:'Laser Focus', color:'#7df2ff'});
+      if(state.disc >= 50) earned.push({name:'Steel Discipline', color:'#ffd54d'});
+      if(state.done >= (state.total||9999)) earned.push({name:'Syllabus Conqueror', color:'#ffb84d'});
+      badgesEl.innerHTML = earned.map(b=>`<span class="badge"><span class="dot" style="background:${b.color}"></span>${b.name}</span>`).join('') || '<span class="muted">No badges yet — start grinding!</span>';
+    }
+
+    function flash(msg){
+      const el = document.createElement('div');
+      el.textContent = msg; el.style.position='fixed'; el.style.bottom='18px'; el.style.left='50%'; el.style.transform='translateX(-50%)'; el.style.background='rgba(0,0,0,.6)'; el.style.border='1px solid rgba(255,255,255,.15)'; el.style.padding='8px 12px'; el.style.borderRadius='10px'; el.style.zIndex=9;
+      document.body.appendChild(el); setTimeout(()=>el.remove(), 1600);
+    }
+
+    render();
+
+    /*********************
+     * AI Orb behaviour  *
+     *********************/
+    const orb = document.getElementById('orb');
+    const orbCore = document.getElementById('orbCore');
+    const orbGlow = document.getElementById('orbGlow');
+    const orbState = document.getElementById('orbState');
+
+    let talkTimer=null;
+    function setMode(mode){
+      if(mode==='idle'){
+        state.listening=false; state.talking=false;
+        orbCore.style.animation = 'idlePulse 3s ease-in-out infinite';
+        orbCore.style.setProperty('--core','rgba(0,255,140,.35)');
+        orbGlow.style.setProperty('--gcol','rgba(0,255,215,.22)');
+        orbState.textContent='Idle';
+        clearInterval(talkTimer);
+      } else if(mode==='listen'){
+        state.listening=true; state.talking=false;
+        orbCore.style.animation = 'listenPulse 1.6s ease-in-out infinite';
+        orbCore.style.setProperty('--core','rgba(0,255,0,.55)');
+        orbGlow.style.setProperty('--gcol','rgba(0,255,120,.35)');
+        orbState.textContent='Listening…';
+        clearInterval(talkTimer);
+      } else if(mode==='talk'){
+        state.listening=false; state.talking=true;
+        orbCore.style.animation = 'listenPulse 1.4s ease-in-out infinite';
+        orbState.textContent='Speaking…';
+        // color cycle
+        clearInterval(talkTimer);
+        talkTimer = setInterval(()=>{
+          const cols = ['rgba(0,255,215,.55)','rgba(125,242,255,.55)','rgba(255,120,200,.55)','rgba(255,210,90,.55)'];
+          const pick = cols[Math.floor(Math.random()*cols.length)];
+          orbCore.style.setProperty('--core', pick);
+          orbGlow.style.setProperty('--gcol', pick.replace('.55','.25'));
+        }, 900);
+      }
+    }
+    setMode('idle');
+
+    // subtle glow wandering
+    setInterval(()=>{
+      orbGlow.style.setProperty('--gx', (40+Math.random()*20)+'%');
+      orbGlow.style.setProperty('--gy', (40+Math.random()*20)+'%');
+    }, 1600);
+
+    /*********************
+     * Voice I/O (Web Speech API)
+     *********************/
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recog = null; let micEnabled = false;
+
+    function speak(text, langHint='auto'){
+      const u = new SpeechSynthesisUtterance(text);
+      // pick language by quick heuristic
+      const hasDevanagari = /[\u0900-\u097F]/.test(text);
+      u.lang = langHint==='hi' || hasDevanagari ? 'hi-IN' : 'en-IN';
+      setMode('talk');
+      u.onend = ()=> setMode('idle');
+      speechSynthesis.speak(u);
+    }
+
+    function startRecog(){
+      if(!SR) return alert('SpeechRecognition not supported in this browser. Use Chrome on desktop/mobile.');
+      recog = new SR();
+      recog.continuous = true; // keep listening
+      recog.interimResults = false;
+      recog.lang = 'en-IN'; // good for English + Hinglish; try 'hi-IN' for Hindi
+      recog.onresult = (e)=>{
+        for(let i=e.resultIndex; i<e.results.length; i++){
+          if(e.results[i].isFinal){
+            const t = e.results[i][0].transcript.trim();
+            handleCommand(t);
+          }
+        }
+      };
+      recog.onerror = (e)=>{ console.log('SR error', e.error); if(e.error==='not-allowed'){ alert('Mic permission denied. Allow microphone in browser.'); } };
+      recog.onend = ()=>{ if(micEnabled) { try{ recog.start(); }catch{} } };
+      try{ recog.start(); micEnabled = true; }catch(err){ console.log(err) }
+    }
+
+    function wakeSequence(){
+      // room lights on vibe
+      document.body.style.background = 'radial-gradient(60% 80% at 70% 30%, #11305f 0%, #081224 60%)';
+      setTimeout(()=> document.body.style.background = 'radial-gradient(60% 80% at 70% 30%, #0a1933 0%, #040a16 60%)', 1200);
+      setMode('listen');
+      speak('System online. How can I help, Player?', 'en');
+    }
+
+    <script>
+// Your OpenAI API Key
+const OPENAI_API_KEY = "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"; // Replace with your actual API key
+
+let aiMode = "friend";
+
+// Change AI mode
+function setAIMode(mode) {
+    aiMode = mode.toLowerCase();
+    speak(`Mode changed to ${aiMode} mode.`);
+}
+
+// Fetch AI answer from OpenAI API
+async function getAIAnswer(userText) {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+            model: "gpt-4o-mini", // Fast + cheaper
+            messages: [
+                { role: "system", content: getModePrompt(aiMode) },
+                { role: "user", content: userText }
+            ]
+        })
+    });
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "Sorry, I couldn't think of a reply.";
+}
+
+// Prompt for each mode
+function getModePrompt(mode) {
+    switch(mode) {
+        case "friend":
+            return "You are a supportive and funny best friend. Be casual and use emojis sometimes.";
+        case "teacher":
+            return "You are a knowledgeable and patient teacher. Explain things clearly with examples.";
+        case "gym":
+            return "You are an energetic gym trainer. Motivate and push the user to achieve their best.";
+        case "mentor":
+            return "You are a wise mentor who gives guidance for success and personal growth.";
+        default:
+            return "You are a helpful assistant.";
+    }
+}
+
+// AI speaks
+function speak(text) {
+    let utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    speechSynthesis.speak(utterance);
+}
+
+// Process user input
+async function processUserSpeech(userSpeech) {
+    speak("Let me think...");
+    let aiReply = await getAIAnswer(userSpeech);
+    speak(aiReply);
+    document.getElementById("chatBox").innerHTML += `<p><b>You:</b> ${userSpeech}</p>`;
+    document.getElementById("chatBox").innerHTML += `<p><b>AI (${aiMode} mode):</b> ${aiReply}</p>`;
+}
+
+// Example buttons for modes
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("friendBtn").addEventListener("click", () => setAIMode("friend"));
+    document.getElementById("teacherBtn").addEventListener("click", () => setAIMode("teacher"));
+    document.getElementById("gymBtn").addEventListener("click", () => setAIMode("gym"));
+    document.getElementById("mentorBtn").addEventListener("click", () => setAIMode("mentor"));
+});
+</script>
+
+
+    // buttons
+    document.getElementById('micBtn').onclick = ()=>{ startRecog(); flash('Mic enabled. Say: "Arise"') };
+    document.getElementById('ariseBtn').onclick = ()=> wakeSequence();
+  </script>
+<script>
+</body>
+</html>
+
+<body><div style="margin:20px;">
+    <button id="friendBtn">Friend Mode</button>
+    <button id="teacherBtn">Teacher Mode</button>
+    <button id="gymBtn">Gym Mode</button>
+    <button id="mentorBtn">Mentor Mode</button>
+</div>
+
+<div id="chatBox" style="margin:20px; padding:10px; background:#222; color:#fff; border-radius:10px; height:300px; overflow:auto;">
+    <p><i>Start chatting...</i></p>
+</div>
+
+<input type="text" id="userInput" placeholder="Type your question..." style="width:80%; padding:10px;">
+<button onclick="processUserSpeech(document.getElementById('userInput').value)">Send</button>
+
+
